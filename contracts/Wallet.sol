@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract WalletInsurance {
+/**
+ * @title Wallet
+ * @notice This smart contract provides wallet insurance with different packages. Users can choose 
+ * from Regular, Robust, or Comprehensive packages, each with a different premium. Claims can be 
+ * submitted and are subject to approval or rejection by the admin (verifier company).
+ */
+contract Wallet{
     address payable public verifierCompany;
-    uint256 constant private regularPremium = 1000;
-    uint256 constant private robustPremium = 10000;
-    uint256 constant private comprehensivePremium = 100000;
-    uint256 constant private paymentInterval = 28 days;
+    uint256 private constant REGULAR_PREMIUM = 1000;
+    uint256 private constant ROBUST_PREMIUM = 10000;
+    uint256 private constant COMPREHENSIVE_PREMIUM = 100000;
+    uint256 private constant PAYMENT_INTERVAL = 28 days;
 
-    enum InsurancePackage {Regular, Robust, Comprehensive}
-    enum ClaimStatus {Pending, Approved, Rejected}
+    enum InsurancePackage { Regular, Robust, Comprehensive }
+    enum ClaimStatus { Pending, Approved, Rejected }
 
     struct User {
         InsurancePackage package;
@@ -29,12 +35,15 @@ contract WalletInsurance {
     modifier onlyAdmin() {
         require(
             msg.sender == verifierCompany,
-            "Only the terms & conditions verifier can perform this action."
+            "Only the admin can perform this action."
         );
         _;
     }
 
-    // Function for users to select an insurance package and make the premium payment
+    /**
+     * @notice Allows users to select an insurance package and make the premium payment
+     * @param _package The chosen insurance package
+     */
     function selectPackage(InsurancePackage _package) external payable {
         require(
             _package >= InsurancePackage.Regular && _package <= InsurancePackage.Comprehensive,
@@ -52,14 +61,13 @@ contract WalletInsurance {
 
         // Set the premium amount based on the selected insurance package
         if (_package == InsurancePackage.Regular) {
-            user.premiumAmount = regularPremium;
+            user.premiumAmount = REGULAR_PREMIUM;
         } else if (_package == InsurancePackage.Robust) {
-            user.premiumAmount = robustPremium;
+            user.premiumAmount = ROBUST_PREMIUM;
         } else if (_package == InsurancePackage.Comprehensive) {
-            user.premiumAmount = comprehensivePremium;
+            user.premiumAmount = COMPREHENSIVE_PREMIUM;
         }
 
-        // Transfer premium amount to the verifier company
         require(
             msg.value >= user.premiumAmount,
             "Insufficient premium amount."
@@ -69,7 +77,9 @@ contract WalletInsurance {
     }
     
 
-    // Function for users to submit a claim for their insured wallet
+    /**
+     * @notice Allows users to submit a claim for their insured wallet
+     */
     function submitClaim() external {
         require(
             users[msg.sender].isActive,
@@ -82,7 +92,10 @@ contract WalletInsurance {
         claims[msg.sender] = ClaimStatus.Pending;
     }
 
-    // Function for the admin to approve a user's claim and transfer the claim payout
+    /**
+     * @notice Allows the admin to approve a user's claim and transfer the claim payout
+     * @param _user The address of the user whose claim is to be approved
+     */
     function approveClaim(address _user) external onlyAdmin {
         require(
             users[_user].isActive,
@@ -94,12 +107,15 @@ contract WalletInsurance {
         );
 
         claims[_user] = ClaimStatus.Approved;
-        uint256 claimPayout = users[_user].totalPayments * 2; // Payout value is twice the total payments made by the user
+        uint256 claimPayout = users[_user].totalPayments * 2; // Payout is twice the total payments made by the user
         (bool success, ) = _user.call{value: claimPayout}("");
         require(success, "Claim payout failed.");
     }
 
-    // Function for the admin to reject a user's claim
+    /**
+     * @notice Allows the admin to reject a user's claim
+     * @param _user The address of the user whose claim is to be rejected
+     */
     function rejectClaim(address _user) external onlyAdmin {
         require(
             users[_user].isActive,
@@ -113,7 +129,9 @@ contract WalletInsurance {
         claims[_user] = ClaimStatus.Rejected;
     }
 
-    // Function for users to cancel their insurance package
+    /**
+     * @notice Allows users to cancel their insurance package
+     */
     function cancelInsurance() external {
         require(
             users[msg.sender].isActive,
@@ -123,39 +141,36 @@ contract WalletInsurance {
         users[msg.sender].isActive = false;
     }
 
-    // Function for users to pay their premium to the verifier company
+    /**
+     * @notice Allows users to pay their premium to the verifier company
+     */
     function payPremiumToVerifier() external payable {
         User storage user = users[msg.sender];
         require(
             user.isActive,
-            "User does not have an active insurance package"
+            "User does not have an active insurance package."
         );
 
         uint256 elapsedTime = block.timestamp - user.lastPaymentTimestamp;
-        uint256 missedPayments = elapsedTime / paymentInterval;
-        uint256 paymentDue = user.lastPaymentTimestamp + (missedPayments * paymentInterval);
+        uint256 missedPayments = elapsedTime / PAYMENT_INTERVAL;
+        uint256 paymentDue = user.lastPaymentTimestamp + (missedPayments * PAYMENT_INTERVAL);
 
         require(
             block.timestamp >= paymentDue,
-            "Premium payment is not yet due"
+            "Premium payment is not yet due."
         );
 
-        // Calculate the number of premiums due
-        uint256 premiumsDue = missedPayments + 1;
+        uint256 premiumsDue = missedPayments + 1; // Calculate the number of premiums due
+        uint256 totalPremiumAmountDue = premiumsDue * user.premiumAmount; // Calculate total premium amount due
 
-        // Calculate the total premium amount due
-        uint256 totalPremiumAmountDue = premiumsDue * user.premiumAmount;
-
-        // Update last payment timestamp and total payments made by the user
         user.lastPaymentTimestamp = paymentDue;
         user.totalPayments += premiumsDue;
 
-        // Transfer premium amount to the verifier company
         require(
             msg.value >= totalPremiumAmountDue,
-            "Insufficient premium amount"
+            "Insufficient premium amount."
         );
         (bool success, ) = verifierCompany.call{value: totalPremiumAmountDue}("");
-        require(success, "Premium transfer failed");
+        require(success, "Premium transfer failed.");
     }
 }
