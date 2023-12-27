@@ -8,10 +8,10 @@ describe('Insurance', function () {
     let user1;
 
     // Constants for premium and collateral values
-    const CATEGORY_A_PREMIUM = 0.0001; 
-    const CATEGORY_B_PREMIUM = 0.00001; 
-    const CATEGORY_A_COLLATERAL = 3; 
-    const CATEGORY_B_COLLATERAL = 2; 
+    const CATEGORY_A_PREMIUM = ethers.utils.parseEther('0.0001'); 
+    const CATEGORY_B_PREMIUM = ethers.utils.parseEther('0.00001'); 
+    const CATEGORY_A_COLLATERAL = ethers.utils.parseEther('3'); 
+    const CATEGORY_B_COLLATERAL = ethers.utils.parseEther('2'); 
 
     beforeEach(async function () {
         [owner, user0, user1] = await ethers.getSigners();
@@ -32,7 +32,7 @@ describe('Insurance', function () {
             expect(user.collateralAmount).to.equal(CATEGORY_A_COLLATERAL);
             expect(user.collateralDropped).to.be.false;
             expect(user.isApproved).to.be.false;
-            expect(user.lastPaymentTimestamp).to.equal((0));
+            expect(user.lastPaymentTimestamp).to.equal(ethers.BigNumber.from(0));
         });
 
         it('Should not set collateral value exceeding the limit', async function () {
@@ -67,8 +67,8 @@ describe('Insurance', function () {
         });
 
         it('Should not allow payment below the premium amount', async function () {
-            await expect(insurance.connect(user0).payPremiumCategoryA({ value: CATEGORY_A_PREMIUM.sub(ethers.utils.parseEther('0.00001')) })).to.be.revertedWith('Incorrect premium amount');
-        });
+            await expect(insurance.connect(user0).payPremiumCategoryA({value: CATEGORY_A_PREMIUM.sub(ethers.utils.parseEther('0.0001')) })).to.be.revertedWith('Incorrect premium amount');
+        });   
 
         it('Should transfer premium amount to the verifierCompany', async function () {
             const initialBalance = await ethers.provider.getBalance(owner.address);
